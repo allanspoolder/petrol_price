@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E10 Preise</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0a7d4f">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #ffffff; --text: #1b1f24; --muted: #5f6b7a;
+    --line: #e2e6eb; --accent: #0a7d4f; --accent-bg: #e6f4ee;
+    --closed: #a33; --closed-bg: #fbeaea; --btn: #1b1f24; --btn-text: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121417; --card: #1c1f24; --text: #e8eaed; --muted: #9aa4b1;
+      --line: #2c3138; --accent: #4cc58f; --accent-bg: #173326;
+      --closed: #f08080; --closed-bg: #3a1e1e; --btn: #e8eaed; --btn-text: #121417;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 16px; font-size: .9rem; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  input[type=password], input[type=text], select {
+    flex: 1 1 240px; padding: 9px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--card); color: var(--text); font: inherit;
+  }
+  select { flex: 0 0 auto; }
+  button {
+    padding: 9px 14px; border: 0; border-radius: 8px; background: var(--btn);
+    color: var(--btn-text); font: inherit; cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: .9rem; }
+  #status { color: var(--muted); font-size: .9rem; min-height: 1.4em; margin: 8px 0 12px; }
+  #status.err { color: var(--closed); }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  li {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+  }
+  li.best { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .name { font-weight: 600; }
+  .addr, .meta { color: var(--muted); font-size: .88rem; }
+  .price { font-size: 1.5rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .price sup { font-size: .6em; }
+  .badge { display: inline-block; padding: 1px 7px; border-radius: 99px; font-size: .78rem; margin-left: 6px; }
+  .open { background: var(--accent-bg); color: var(--accent); }
+  .closed { background: var(--closed-bg); color: var(--closed); }
+  a { color: inherit; }
+  #keyRow[hidden], #changeKey[hidden] { display: none; }
+  footer { margin-top: 24px; color: var(--muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1><span id="fuelName">E10</span> im Umkreis von <span id="placeName">Höhenkirchen-Siegertsbrunn</span></h1>
+  <p class="sub">Günstigste Tankstellen nach Preis, Daten von Tankerkönig (MTS-K).</p>
+
+  <div class="bar" id="keyRow">
+    <input id="key" type="password" placeholder="Tankerkönig API-Key einfügen" autocomplete="off">
+    <button id="saveKey">Speichern</button>
+  </div>
+
+  <div class="bar">
+    <input id="place" type="text" placeholder="PLZ oder Ort, z. B. 85635 oder Ottobrunn" autocomplete="postal-code" enterkeyhint="search">
+    <button id="findPlace">Suchen</button>
+    <button id="locate" class="secondary" title="Aktuellen Standort verwenden">📍 Mein Standort</button>
+  </div>
+
+  <div class="bar">
+    <select id="fuel" aria-label="Kraftstoff" autocomplete="off">
+      <option value="e10" selected>E10</option>
+      <option value="e5">Super E5</option>
+      <option value="diesel">Diesel</option>
+    </select>
+    <select id="radius" aria-label="Radius">
+      <option value="5">5 km</option>
+      <option value="10" selected>10 km</option>
+      <option value="15">15 km</option>
+      <option value="25">25 km</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="onlyOpen" checked> nur geöffnete</label>
+    <button id="refresh">Aktualisieren</button>
+    <button id="changeKey" class="secondary" hidden>API-Key ändern</button>
+  </div>
+
+  <div id="status"></div>
+  <ol id="list"></ol>
+
+
+  <footer>
+    Preise: <a href="https://creativecommons.tankerkoenig.de" target="_blank" rel="noopener">Tankerkönig</a>,
+    Lizenz CC BY 4.0. Bitte nicht öfter als alle 5 Minuten automatisch abfragen.
+    Ortssuche: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>.
+    API-Key und Ort bleiben nur in diesem Browser (localStorage).
+  </footer>
+</main>
+
+<script>
+(() => {
+  // Standard: Ortsmitte Höhenkirchen-Siegertsbrunn
+  const DEFAULT_LOC = { lat: 48.0195, lng: 11.7175, label: "Höhenkirchen-Siegertsbrunn" };
+  const LOC_STORE = "tk_location";
+  const GEO = "https://nominatim.openstreetmap.org/search";
+  const API = "https://creativecommons.tankerkoenig.de/json/list.php";
+  const KEY_STORE = "tk_apikey";
+
+  const $ = id => document.getElementById(id);
+  const keyRow = $("keyRow"), keyInput = $("key"), statusEl = $("status"), listEl = $("list");
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+    del(k) { try { localStorage.removeItem(k); } catch {} }
+  };
+
+  let apiKey = store.get(KEY_STORE);
+  let lastStations = [];
+  let loc = (() => { try { const l = JSON.parse(store.get(LOC_STORE)); if (l && isFinite(l.lat) && isFinite(l.lng)) return l; } catch {} return DEFAULT_LOC; })();
+
+  function setLocation(l) {
+    loc = l;
+    store.set(LOC_STORE, JSON.stringify(l));
+    $("placeName").textContent = l.label;
+    document.title = fuelLabel() + " Preise " + l.label;
+    load();
+  }
+
+  async function findPlace() {
+    const q = $("place").value.trim();
+    if (!q) return;
+    // PLZ gezielt suchen, sonst Ortsname (nur Deutschland), über OpenStreetMap
+    const params = /^\d{5}$/.test(q)
+      ? `postalcode=${q}&country=de`
+      : `q=${encodeURIComponent(q)}&countrycodes=de`;
+    setStatus("Suche Ort …");
+    try {
+      const res = await fetch(`${GEO}?format=jsonv2&limit=1&addressdetails=1&accept-language=de&${params}`);
+      const [hit] = await res.json();
+      if (!hit) { setStatus(`„${q}“ wurde nicht gefunden.`, true); return; }
+      const a = hit.address || {};
+      const town = a.city || a.town || a.village || a.municipality || a.suburb || hit.name;
+      const label = /^\d{5}$/.test(q) ? `${q}${town ? " " + town : ""}` : (town || q);
+      $("place").value = "";
+      setLocation({ lat: +hit.lat, lng: +hit.lon, label });
+    } catch (e) {
+      setStatus("Ortssuche fehlgeschlagen: " + (e.message || e), true);
+    }
+  }
+
+  function locate() {
+    if (!navigator.geolocation) { setStatus("Dein Browser kann den Standort nicht ermitteln.", true); return; }
+    setStatus("Ermittle Standort …");
+    navigator.geolocation.getCurrentPosition(
+      p => setLocation({ lat: +p.coords.latitude.toFixed(4), lng: +p.coords.longitude.toFixed(4), label: "deinem Standort" }),
+      e => setStatus(e.code === 1 ? "Standortzugriff wurde nicht erlaubt." : "Standort konnte nicht ermittelt werden.", true),
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 5 * 60 * 1000 }
+    );
+  }
+
+
+  function showKeyUi(show) {
+    keyRow.hidden = !show;
+    $("changeKey").hidden = show;
+  }
+
+  function setStatus(msg, isErr) {
+    statusEl.textContent = msg;
+    statusEl.className = isErr ? "err" : "";
+  }
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function title(s) {
+    // Viele Einträge kommen in GROSSBUCHSTABEN
+    s = String(s ?? "").trim();
+    return s === s.toUpperCase() ? s.toLowerCase().replace(/(^|[\s\-\/(])\p{L}/gu, m => m.toUpperCase()) : s;
+  }
+
+  function priceHtml(p) {
+    // 1.689 -> 1,68 + hochgestellte 9
+    const s = p.toFixed(3).replace(".", ",");
+    return s.slice(0, -1) + "<sup>" + s.slice(-1) + "</sup> €";
+  }
+
+  function render() {
+    const onlyOpen = $("onlyOpen").checked;
+    const rows = lastStations
+      .filter(s => typeof s.price === "number" && s.price > 0)
+      .filter(s => !onlyOpen || s.isOpen)
+      .sort((a, b) => a.price - b.price || a.dist - b.dist);
+
+    if (!rows.length) {
+      listEl.innerHTML = "";
+      setStatus(lastStations.length ? `Keine passende Tankstelle mit ${fuelLabel()}-Preis gefunden.` : statusEl.textContent);
+      return;
+    }
+
+    listEl.innerHTML = rows.map((s, i) => {
+      const addr = [title(s.street) + (s.houseNumber ? " " + s.houseNumber : ""),
+                    (s.postCode ? String(s.postCode).padStart(5, "0") + " " : "") + title(s.place)]
+                    .filter(Boolean).join(", ");
+      const maps = "https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng;
+      const name = title(s.brand || s.name);
+      const sub = s.brand && title(s.name) !== name ? title(s.name) : "";
+      return `<li class="${i === 0 ? "best" : ""}">
+        <div>
+          <div class="name">${esc(name)}
+            <span class="badge ${s.isOpen ? "open" : "closed"}">${s.isOpen ? "geöffnet" : "geschlossen"}</span>
+          </div>
+          ${sub ? `<div class="addr">${esc(sub)}</div>` : ""}
+          <div class="addr">${esc(addr)}</div>
+          <div class="meta">${s.dist.toFixed(1).replace(".", ",")} km · <a href="${maps}" target="_blank" rel="noopener">Route</a></div>
+        </div>
+        <div class="price">${priceHtml(s.price)}</div>
+      </li>`;
+    }).join("");
+  }
+
+  async function load() {
+    if (!apiKey) { showKeyUi(true); setStatus("Bitte zuerst den Tankerkönig API-Key eingeben."); return; }
+    const rad = $("radius").value;
+    const url = `${API}?lat=${loc.lat}&lng=${loc.lng}&rad=${rad}&sort=price&type=${$("fuel").value}&apikey=${encodeURIComponent(apiKey)}`;
+    setStatus("Lade Preise …");
+    $("refresh").disabled = true;
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.message || "Unbekannter Fehler der API");
+      lastStations = data.stations || [];
+      const t = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+      setStatus(`${lastStations.length} Tankstelle${lastStations.length === 1 ? "" : "n"} im Umkreis von ${rad} km · Stand ${t} Uhr`);
+      render();
+    } catch (e) {
+      lastStations = []; listEl.innerHTML = "";
+      const msg = String(e.message || e);
+      setStatus("Fehler: " + msg + (/apikey|api-key|key/i.test(msg) ? " (API-Key prüfen)" : ""), true);
+      if (/apikey|api-key|key/i.test(msg)) showKeyUi(true);
+    } finally {
+      $("refresh").disabled = false;
+    }
+  }
+
+  $("saveKey").onclick = () => {
+    const k = keyInput.value.trim();
+    if (!k) return;
+    apiKey = k; store.set(KEY_STORE, k); keyInput.value = "";
+    showKeyUi(false); load();
+  };
+  keyInput.addEventListener("keydown", e => { if (e.key === "Enter") $("saveKey").click(); });
+  $("changeKey").onclick = () => { showKeyUi(true); keyInput.focus(); };
+  $("refresh").onclick = load;
+  $("radius").onchange = load;
+  $("onlyOpen").onchange = render;
+  const fuelLabel = () => $("fuel").selectedOptions[0].textContent;
+  $("fuel").onchange = () => {
+    $("fuelName").textContent = fuelLabel();
+    document.title = fuelLabel() + " Preise " + loc.label;
+    load();
+  };
+  $("findPlace").onclick = findPlace;
+  $("place").addEventListener("keydown", e => { if (e.key === "Enter") findPlace(); });
+  $("locate").onclick = locate;
+  $("placeName").textContent = loc.label;
+  document.title = fuelLabel() + " Preise " + loc.label;
+
+  // Reste der früheren Verlaufsfunktion entfernen
+  store.del("tk_history"); store.del("tk_auto");
+
+  // Gespeicherte Daten (API-Key, Ort) dauerhaft behalten, damit Android sie nicht von selbst löscht
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+  // Offline-Unterstützung und Installierbarkeit (nur über https oder localhost)
+  if ("serviceWorker" in navigator && location.protocol !== "file:") {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+
+  showKeyUi(!apiKey);
+  load();
+})();
+</script>
+</body>
+</html>
