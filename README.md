@@ -1,7 +1,7 @@
 # Spritpreise (E10, E5, Diesel)
 
 Installierbare Web-App (PWA), die die günstigsten Tankstellen im Umkreis anzeigt.
-Standardort ist Höhenkirchen-Siegertsbrunn; per PLZ, Ortsname oder aktuellem Standort änderbar.
+per PLZ, Ortsname oder aktuellem Standort änderbar.
 
 - Preise: [Tankerkönig](https://creativecommons.tankerkoenig.de) (CC BY 4.0)
 - Ortssuche: © OpenStreetMap (Nominatim)
