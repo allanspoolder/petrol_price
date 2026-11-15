@@ -1,5 +1,5 @@
 // Speichert nur die App selbst. Preise und Ortssuche kommen immer frisch aus dem Netz.
-const CACHE = "e10-app-v2";
+const CACHE = "e10-app-v3";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/maskable-192.png", "icons/maskable-512.png"];
 
 self.addEventListener("install", e => {

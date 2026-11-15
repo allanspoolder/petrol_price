@@ -89,6 +89,10 @@
       <option value="15">15 km</option>
       <option value="25">25 km</option>
     </select>
+    <select id="sort" aria-label="Sortierung">
+      <option value="price">nach Preis</option>
+      <option value="dist">nach Entfernung</option>
+    </select>
     <label class="chk"><input type="checkbox" id="onlyOpen" checked> nur geöffnete</label>
     <button id="refresh">Aktualisieren</button>
     <button id="changeKey" class="secondary" hidden>API-Key ändern</button>
@@ -200,7 +204,11 @@
     const rows = lastStations
       .filter(s => typeof s.price === "number" && s.price > 0)
       .filter(s => !onlyOpen || s.isOpen)
-      .sort((a, b) => a.price - b.price || a.dist - b.dist);
+      .sort($("sort").value === "dist"
+        ? (a, b) => a.dist - b.dist || a.price - b.price
+        : (a, b) => a.price - b.price || a.dist - b.dist);
+    // Günstigste Tankstelle bleibt markiert, auch bei Sortierung nach Entfernung
+    const bestId = rows.reduce((m, s) => (!m || s.price < m.price || (s.price === m.price && s.dist < m.dist)) ? s : m, null)?.id;
 
     if (!rows.length) {
       listEl.innerHTML = "";
@@ -215,7 +223,7 @@
       const maps = "https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lng;
       const name = title(s.brand || s.name);
       const sub = s.brand && title(s.name) !== name ? title(s.name) : "";
-      return `<li class="${i === 0 ? "best" : ""}">
+      return `<li class="${s.id === bestId ? "best" : ""}">
         <div>
           <div class="name">${esc(name)}
             <span class="badge ${s.isOpen ? "open" : "closed"}">${s.isOpen ? "geöffnet" : "geschlossen"}</span>
@@ -264,6 +272,8 @@
   $("refresh").onclick = load;
   $("radius").onchange = load;
   $("onlyOpen").onchange = render;
+  try { $("sort").value = localStorage.getItem("tk_sort") || "price"; } catch {}
+  $("sort").onchange = () => { store.set("tk_sort", $("sort").value); render(); };
   const fuelLabel = () => $("fuel").selectedOptions[0].textContent;
   $("fuel").onchange = () => {
     $("fuelName").textContent = fuelLabel();
